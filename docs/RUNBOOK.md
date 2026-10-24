@@ -44,16 +44,28 @@ Expect `batch_000` with 329,660 order lines, of which 2,963 are bad and 1,627 ar
 
 ## Step 4 · Create the pipeline (10 min)
 
-1. **Jobs & Pipelines → Create → ETL pipeline.** Name: `retail_lakehouse`.
-2. Default catalog: `retail`, default schema: `bronze`.
-3. **Add existing assets**: root folder = `<your Git folder>/pipelines`, source code = `<your Git folder>/pipelines/transformations`.
-   The root folder is on the Python path, which is how `from utilities import ...` resolves.
-4. **Settings → Configuration**, add:
-   - `landing_root` = `/Volumes/retail/raw/landing`
-   - `calendar_start` = `2025-01-01`
-   - `calendar_end` = `2026-12-31`
-5. Pipeline mode: **Triggered**. Compute is serverless (the only option on Free Edition).
-6. **Run pipeline.** The first run takes a few minutes.
+> **Free Edition allows only a little serverless compute at once.** Before every pipeline run, terminate the
+> notebooks' serverless sessions (notebook toolbar → Serverless ▾ → › → Terminate). Otherwise the run fails with
+> `RESOURCE_EXHAUSTED: You've hit the limit for serverless compute`.
+
+1. **Jobs & Pipelines → ETL pipeline.** Databricks immediately creates a draft ("New Pipeline <date>") in
+   `workspace.default` with an empty `my_transformation.py`.
+2. Open **Settings (gear) → JSON**, replace everything with the block below (put your own pipeline `id` back and
+   your email in both paths), and **Save**:
+
+   ```json
+   {"id": "<keep the id shown>", "pipeline_type": "WORKSPACE", "name": "retail_lakehouse",
+    "libraries": [{"glob": {"include": "/Workspace/Users/<you>/governed-retail-lakehouse/pipelines/transformations/**"}}],
+    "catalog": "retail", "schema": "bronze", "continuous": false, "development": false,
+    "photon": true, "channel": "CURRENT", "serverless": true,
+    "root_path": "/Workspace/Users/<you>/governed-retail-lakehouse/pipelines",
+    "configuration": {"landing_root": "/Volumes/retail/raw/landing",
+                      "calendar_start": "2025-01-01", "calendar_end": "2026-12-31"}}
+   ```
+
+   The root folder is on the Python path, which is how `from utilities import ...` resolves. The draft's
+   `my_transformation.py` is now outside the pipeline ("Excluded") and can be deleted.
+3. **Run pipeline.** The first run takes about 4 minutes.
 
 Screenshot: the pipeline graph after a green run → `pipeline_graph.png`.
 
@@ -65,11 +77,14 @@ until step 8.
 ## Step 6 · Prove it's incremental (15 min)
 
 1. **Run the pipeline again without landing anything.** This is update 2: nothing new should be read.
-2. Land batch 1 (`batches` = `next`), run the pipeline. This is update 3.
-3. Land batches 2-7 (`batches` = `2-7`), run the pipeline. Batch 7 re-sends batch 6's orders file: the
-   duplicates must disappear in silver and the quarantine must grow by batch 6's bad rows again.
-4. Run `notebooks/03_incremental_proof.sql` (SQL warehouse).
-5. Land batches 8-14 (`batches` = `8-14`), run the pipeline, run `04_validate.py` again: all PASS.
+2. Land batch 1 (`batches` = `1`), terminate the notebook session, run the pipeline. This is update 3.
+3. Land batches 2-7 (`batches` = `2-7`), terminate the session, run the pipeline. Batch 7 re-sends batch 6's orders
+   file: the duplicates must disappear in silver and the quarantine must grow by batch 6's bad rows again.
+4. Run `04_validate.py`: all PASS. In particular, "Net sales preserved silver -> gold" proves gold caught up in the
+   same update (see "Why de-duplication is a materialized view" in `docs/dq_rules.md`).
+5. Run `notebooks/03_incremental_proof.sql`. In query B, `retail.gold.fact_order_line` must grow in the same update
+   as `retail.silver.order_lines`.
+6. Land batches 8-14 (`batches` = `8-14`), run the pipeline, run `04_validate.py` again: all PASS.
 
 Screenshots: query B (rows per flow per update) → `incremental_rows_per_update.png`; query C (MV refresh
 technique) → `mv_refresh_technique.png`; query D (expectations) → `expectations.png`; validate result →
@@ -143,5 +158,8 @@ Screenshots: benchmark results page for each run → `genie_run_A.png`, `genie_r
 | `PATH_NOT_FOUND /Volumes/retail/raw/landing` | Setup not run, or a different catalog name | Step 2 |
 | Gold MV fails with a schema mismatch | Declared schema and DataFrame differ | Paste the error to Claude |
 | `DELTA_...` or expectation `unique_*` failed | A gold key check fired | Paste the failing table to Claude: this means a bug |
-| Compute shut down for the day | Free Edition daily quota | Wait until tomorrow; nothing is lost |
+| Compute shut down for the day, or SQL warehouse "Clusters are failing to launch" | Free Edition daily quota | Wait until tomorrow; nothing is lost |
+| `RESOURCE_EXHAUSTED: You've hit the limit for serverless compute` | Notebook sessions still attached | Terminate them (Serverless ▾ → › → Terminate), run again |
+| Gold totals one update behind silver (`04_validate`: "Net sales preserved" FAIL) | The old streaming de-dup (fixed in commit "Move exact-duplicate removal into materialized views") | Pull the Git folder, then **Full refresh all** |
+| Error that a table changed from streaming table to materialized view | Dataset type changed in the code | Pipeline → Run pipeline ▾ → **Full refresh all** |
 | `CREATE CATALOG` not permitted | Free Edition restriction | Use catalog `workspace`: replace `retail.` everywhere and set the pipeline's default catalog |

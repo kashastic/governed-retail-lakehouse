@@ -6,7 +6,8 @@
 |---|---|---|---|
 | Landing | `raw.landing` volume: `<entity>/<batch_id>/*`, `_manifest/<batch_id>.json` | files | generator |
 | Bronze | `orders_raw`, `returns_raw`, `customers_cdc_raw`, `products_cdc_raw` | one row per record received | Auto Loader streaming tables |
-| Silver | `order_lines`, `returns` | one row per valid order line / return, exact copies removed | streaming tables |
+| Silver | `order_lines_validated`, `returns_validated` (private) | one row per valid record received, incl. re-sends | streaming tables with expectations |
+| Silver | `order_lines`, `returns` | one row per valid order line / return, first arrival of exact copies kept | materialized views |
 | Silver | `order_lines_quarantine`, `returns_quarantine` | one row per bad record received, with `failed_rules` | streaming tables |
 | Silver | `customers` (SCD2), `products` (SCD1) | one row per customer version / product | AUTO CDC |
 | Gold | `dim_date`, `dim_customer`, `dim_product`, `fact_order_line`, `fact_return` | see below | materialized views |

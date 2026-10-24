@@ -2,12 +2,16 @@
 
 Order lines and returns follow the same pattern:
 
-    bronze -> typed view -+-> validated (expect_all_or_drop) -> de-duplicated silver table
-                          +-> quarantine table (rows breaking any rule, with failed_rules)
+    bronze -> typed view -+-> validated streaming table (expect_all_or_drop)
+                          |       -> silver materialized view (exact copies removed)
+                          +-> quarantine streaming table (rows breaking any rule, with failed_rules)
 
 One rules dict drives both branches, so the rows the expectations drop are
 exactly the rows that land in quarantine. Expectations run before
 de-duplication, so the event log counts every bad row that arrived.
+
+The validated and quarantine tables are append-only streams; removing exact
+copies happens in a materialized view, so no stream in the pipeline keeps state.
 
 Customers and products are change feeds applied with AUTO CDC (formerly
 APPLY CHANGES): customers keep full history (SCD type 2), products keep the
@@ -32,10 +36,11 @@ def order_lines_validated():
     return spark.readStream.table("order_lines_exploded")
 
 
-@dp.table(name="silver.order_lines",
-          comment="Valid order lines, one row per line. Exact re-sends removed by content hash.")
+@dp.materialized_view(name="silver.order_lines",
+                      comment="Valid order lines, one row per line. Exact re-sends removed by content hash; "
+                              "the first arrival is kept.")
 def order_lines():
-    return transforms.dedupe_exact(spark.readStream.table("order_lines_validated"), "order_ts")
+    return transforms.dedupe_exact(spark.read.table("order_lines_validated"))
 
 
 @dp.table(name="silver.order_lines_quarantine",
@@ -58,9 +63,10 @@ def returns_validated():
     return spark.readStream.table("returns_typed")
 
 
-@dp.table(name="silver.returns", comment="Valid returns, one row per return. Exact re-sends removed.")
+@dp.materialized_view(name="silver.returns",
+                      comment="Valid returns, one row per return. Exact re-sends removed; the first arrival is kept.")
 def returns():
-    return transforms.dedupe_exact(spark.readStream.table("returns_validated"), "return_ts")
+    return transforms.dedupe_exact(spark.read.table("returns_validated"))
 
 
 @dp.table(name="silver.returns_quarantine",

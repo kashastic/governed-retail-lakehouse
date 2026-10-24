@@ -12,7 +12,7 @@
 -- MAGIC | Query | Expected |
 -- MAGIC |---|---|
 -- MAGIC | A. Files and load time per batch | Each batch loaded once, at a different time; earlier batches never reloaded |
--- MAGIC | B. Rows written per flow per update | Update 2 writes 0 rows to bronze/silver; update 3 writes only the new batch's rows |
+-- MAGIC | B. Rows written per flow per update | Update 2 writes 0 rows to bronze; update 3 writes only the new batch's rows; `gold.fact_order_line` grows in the same update as `silver.order_lines` |
 -- MAGIC | C. Materialized view refresh technique | Whether each gold view was refreshed incrementally or fully recomputed |
 -- MAGIC | D. Expectation results | Dropped rows per rule, matching the quarantine tables and the generator manifest |
 -- MAGIC
@@ -38,13 +38,26 @@ ORDER BY batch_id
 -- COMMAND ----------
 
 -- B. Rows written per flow in each pipeline update.
-SELECT origin.update_id,
-       min(timestamp)                                                        AS update_time,
-       origin.flow_name,
-       sum(try_cast(details:flow_progress:metrics:num_output_rows AS BIGINT)) AS rows_written
-FROM pipeline_events
-WHERE event_type = 'flow_progress'
-  AND details:flow_progress:status = 'COMPLETED'
+-- Streaming flows report rows per micro-batch on RUNNING events; materialized views report
+-- them once, on the COMPLETED event; AUTO CDC flows report upserts. 0 means nothing new was written.
+WITH progress AS (
+  SELECT origin.update_id,
+         timestamp,
+         origin.flow_name,
+         details:flow_progress:status AS status,
+         try_cast(details:flow_progress:metrics:num_output_rows AS BIGINT)   AS output_rows,
+         try_cast(details:flow_progress:metrics:num_upserted_rows AS BIGINT) AS upserted_rows
+  FROM pipeline_events
+  WHERE event_type = 'flow_progress'
+)
+SELECT update_id,
+       min(timestamp) AS update_time,
+       flow_name,
+       coalesce(max(CASE WHEN status = 'COMPLETED' THEN output_rows END),
+                sum(CASE WHEN status = 'RUNNING' THEN output_rows END),
+                sum(upserted_rows),
+                0) AS rows_written
+FROM progress
 GROUP BY ALL
 ORDER BY update_time, flow_name
 
@@ -74,5 +87,6 @@ ORDER BY dataset, expectation
 
 -- COMMAND ----------
 
--- Table history of the main silver table: one STREAMING UPDATE per pipeline update.
-DESCRIBE HISTORY retail.silver.order_lines
+-- Table history of the bronze orders stream: one STREAMING UPDATE per update that brought new files,
+-- none for an update with nothing new. operationMetrics.numOutputRows shows the rows each one added.
+DESCRIBE HISTORY retail.bronze.orders_raw

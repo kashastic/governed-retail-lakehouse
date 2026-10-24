@@ -62,36 +62,26 @@ def test_dedupe_removes_exact_copies_only(spark):
         _order("O2", items=[_item(1, quantity=1)]),
         _order("O2", items=[_item(1, quantity=3)]),                      # same key, different content
     ]))
-    kept = transforms.dedupe_exact(df, "order_ts").collect()
+    kept = transforms.dedupe_exact(df).collect()
     assert sorted((r.order_id, r.quantity) for r in kept) == [("O1", 1), ("O2", 1), ("O2", 3)]
 
 
-def test_streaming_dedupe_drops_a_resent_file_on_the_next_run(spark, tmp_path):
-    """Two triggered runs with one checkpoint: the second run's re-sent file adds nothing."""
-    landing, out, ckpt = tmp_path / "landing", tmp_path / "out", tmp_path / "ckpt"
+def test_dedupe_keeps_the_first_arrival_however_late_the_resend(spark):
+    """A re-sent file weeks later is still removed, and the kept rows point to the original file."""
+    def arrival(batch, loaded_at, records):
+        df = _orders(spark, records).withColumn(
+            "_source_file", F.lit(f"/Volumes/retail/raw/landing/orders/{batch}/orders.json")
+        ).withColumn("_ingested_at", F.lit(loaded_at).cast("timestamp"))
+        return transforms.explode_order_lines(df)
+
     day6 = [_order(f"O6{i}", ts=f"2026-09-06T1{i}:00:00") for i in range(3)]
     day7 = [_order(f"O7{i}", ts=f"2026-09-07T1{i}:00:00") for i in range(2)]
-
-    def write(name, records):
-        landing.mkdir(exist_ok=True)
-        (landing / name).write_text("".join(json.dumps(r) + "\n" for r in records))
-
-    def run_once():
-        stream = (spark.readStream.schema(schemas.ORDERS).json(str(landing))
-                  .withColumn("_source_file", F.col("_metadata.file_path"))
-                  .withColumn("_ingested_at", F.current_timestamp()))
-        deduped = transforms.dedupe_exact(transforms.explode_order_lines(stream), "order_ts")
-        query = (deduped.writeStream.format("parquet").option("checkpointLocation", str(ckpt))
-                 .trigger(availableNow=True).start(str(out)))
-        query.awaitTermination()
-
-    write("batch_006.json", day6)
-    run_once()
-    write("batch_007.json", day7)
-    write("batch_007_resent_batch_006.json", day6)
-    run_once()
-    ids = sorted(r.order_id for r in spark.read.parquet(str(out)).collect())
-    assert ids == ["O60", "O61", "O62", "O70", "O71"]
+    arrived = (arrival("batch_006", "2026-09-06 23:00:00", day6)
+               .unionByName(arrival("batch_007", "2026-09-07 23:00:00", day7 + day6))
+               .unionByName(arrival("batch_030", "2026-09-30 23:00:00", day6)))   # three weeks later
+    kept = {r.order_id: r.batch_id for r in transforms.dedupe_exact(arrived).collect()}
+    assert kept == {"O60": "batch_006", "O61": "batch_006", "O62": "batch_006",
+                    "O70": "batch_007", "O71": "batch_007"}
 
 
 def _cdc(spark, rows):

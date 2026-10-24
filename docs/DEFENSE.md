@@ -50,29 +50,41 @@ TODO to TODO, and the remaining errors were TODO."
 
 **How is it incremental?**
 Bronze tables use Auto Loader (`cloudFiles`). It records every file it has processed in its checkpoint, so each
-pipeline update reads only files that arrived since the last one. Silver tables are streaming tables reading bronze
-as a stream, so they only process new rows. Customers and products use AUTO CDC, which applies only new change
-records. Gold tables are materialized views: on serverless the engine refreshes them incrementally when the query
-allows it and recomputes them otherwise. The event log shows which (`03_incremental_proof.sql`, query C). Proof:
-rerunning without new files writes 0 rows (query B).
+pipeline update reads only files that arrived since the last one. The validation and quarantine tables are streaming
+tables reading bronze as a stream, so they only process new rows. Customers and products use AUTO CDC, which applies
+only new change records. De-duplicated silver and all of gold are materialized views: on serverless the engine
+refreshes them incrementally when the query allows it and recomputes them otherwise. The event log shows which
+(`03_incremental_proof.sql`, query C). Proof: rerunning without new files writes 0 rows (query B) and adds no
+commits to the bronze tables.
 
 **Why streaming tables in bronze/silver but materialized views in gold?**
-Bronze and silver are append-only: each record needs processing once, which is what a stream does. Gold joins facts
-to dimensions that change (customer history) and attaches returns that arrive weeks after the order. A streaming
-join would freeze whatever the dimension looked like when the line was processed and miss late returns. A
+Ingestion and validation are append-only: each record needs processing once, which is what a stream does. Gold joins
+facts to dimensions that change (customer history) and attaches returns that arrive weeks after the order. A
+streaming join would freeze whatever the dimension looked like when the line was processed and miss late returns. A
 materialized view is always equal to its query over the current inputs, and the engine decides how much it can
-refresh incrementally.
+refresh incrementally. De-duplication is a materialized view too; see the next question for why.
 
 **A return arrives 25 days after the order. What happens?**
-It lands in a later batch, flows into `silver.returns` incrementally, and the next refresh of `fact_order_line`
-re-aggregates returns onto the original line. The return rate for that order month goes up after the fact. That's
-the cohort-maturity effect the dashboard marks.
+It lands in a later batch and flows through the returns stream into `silver.returns`. The next refresh of
+`fact_order_line` re-aggregates returns onto the original line. The return rate for that order month goes up after
+the fact. That's the cohort-maturity effect the dashboard marks.
 
-**Why a 3-day watermark on de-duplication?**
-The watermark bounds the state the stream keeps: hashes older than 3 days of event time are forgotten. Re-sends in
-this feed come within a day. If a copy arrived later, it would pass de-duplication, and the gold key check would
-fail the update. So the failure mode is loud, not silent. The trade-off is state size against how late a re-send
-can be.
+**What went wrong while you built it?** *(the best story in the project: tell it)*
+The first version removed re-sends in a streaming table with a 3-day watermark. Silver reconciled perfectly, but
+the validation notebook failed "net sales preserved silver → gold". The gold fact was exactly one pipeline update
+behind: after landing batch 1 it still had the backfill's 325,070 rows, and after batches 2–7 it had 325,866, the
+previous update's total.
+
+I worked through it from the evidence:
+- The event log showed the fact was planned 21 seconds *after* the new silver rows were committed.
+- `DESCRIBE HISTORY` showed the stateful stream writing a second, empty watermark commit every update.
+- The pipeline graph showed the dependency was registered, so it wasn't a missing edge.
+- The views that refreshed incrementally were current; only the full recompute read the old snapshot.
+
+I removed the streaming state and de-duplicated in a materialized view that keeps the first arrival of each content
+hash, then re-verified with new batches (TODO: fill in the result of the full refresh + batches 8–14 rerun).
+Side benefit: re-sends are caught however late they come, not just within 3 days. Lesson: reconcile every layer
+against ground truth, not just the layer you changed.
 
 ### Data quality
 
@@ -89,8 +101,8 @@ look at. Table in `docs/dq_rules.md`.
 
 **Why de-duplicate by content hash and not by order_id?**
 Business-key de-duplication silently picks a winner when two *different* records share a key. Hashing the content
-removes only true copies. Conflicting versions both reach gold, where `unique_order_line_id` (`expect_or_fail`)
-stops the update.
+removes only true copies, and keeping the first arrival means the row still points to the file it originally came
+in. Conflicting versions both reach gold, where `unique_order_line_id` (`expect_or_fail`) stops the update.
 
 **Why are expectations on a separate private table before de-duplication?**
 So the event log counts every bad row that arrived, including the bad rows inside a re-sent file. Then the

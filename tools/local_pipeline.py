@@ -7,7 +7,7 @@ the manifest reconciliation and the Genie ground-truth SQL can all be checked
 without a workspace.
 
 Differences from Databricks, on purpose:
-- batch reads instead of Auto Loader, and dropDuplicates instead of the watermark;
+- batch reads instead of Auto Loader;
 - scd2_from_cdc / scd1_from_cdc stand in for AUTO CDC;
 - tables are written to a local warehouse as gold.x instead of retail.gold.x.
 """
@@ -48,14 +48,14 @@ def run(spark: SparkSession, root: str, calendar: tuple[str, str] = ("2025-01-01
     exploded = transforms.explode_order_lines(_read(spark, root, "orders", "json", schemas.ORDERS))
     _save(spark, transforms.quarantine(exploded, rules.ORDER_LINE_RULES), "silver.order_lines_quarantine")
     _save(spark, exploded.where(_passes(rules.ORDER_LINE_RULES)), "silver.order_lines_validated")
-    lines = _save(spark, transforms.dedupe_exact(spark.read.table("silver.order_lines_validated"), "order_ts"),
+    lines = _save(spark, transforms.dedupe_exact(spark.read.table("silver.order_lines_validated")),
                   "silver.order_lines")
 
     # Silver: returns
     typed = transforms.type_returns(_read(spark, root, "returns", "json", schemas.RETURNS))
     _save(spark, transforms.quarantine(typed, rules.RETURN_RULES), "silver.returns_quarantine")
     _save(spark, typed.where(_passes(rules.RETURN_RULES)), "silver.returns_validated")
-    returns = _save(spark, transforms.dedupe_exact(spark.read.table("silver.returns_validated"), "return_ts"),
+    returns = _save(spark, transforms.dedupe_exact(spark.read.table("silver.returns_validated")),
                     "silver.returns")
 
     # Silver: change feeds

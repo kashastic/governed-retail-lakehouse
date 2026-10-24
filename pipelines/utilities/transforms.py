@@ -109,19 +109,23 @@ def quarantine(df: DataFrame, rules: dict[str, str]) -> DataFrame:
               .withColumn("quarantined_at", F.current_timestamp()))
 
 
-def dedupe_exact(df: DataFrame, event_time: str, delay: str = "3 days") -> DataFrame:
-    """Drop exact re-sends (same content hash) that arrive within `delay` of each other.
+def dedupe_exact(df: DataFrame) -> DataFrame:
+    """Keep the first arrival of every exact copy (same content hash).
 
-    Only exact copies are removed. Two different rows with the same business key
-    both pass through, and the gold key check fails the update, because that is
-    a conflict a person has to look at.
+    Re-sends are removed however late they arrive, and the row that is kept
+    still points to the file it first came in (earliest load time, then file
+    path). Only exact copies are removed: two different rows with the same
+    business key both pass through, and the gold key check fails the update,
+    because that is a conflict a person has to look at.
 
-    The watermark bounds the state: hashes older than `delay` behind the newest
-    event are forgotten. Batch DataFrames (local tests) fall back to dropDuplicates.
+    Runs in a materialized view, not a stateful stream. A watermark-based
+    streaming de-dup made the gold fact read silver one update late (see
+    docs/dq_rules.md, "Why de-duplication is a materialized view").
     """
-    if not df.isStreaming:
-        return df.dropDuplicates(["record_hash"])
-    return df.withWatermark(event_time, delay).dropDuplicatesWithinWatermark(["record_hash"])
+    first_arrival = Window.partitionBy("record_hash").orderBy("_ingested_at", "_source_file")
+    return (df.withColumn("_arrival", F.row_number().over(first_arrival))
+              .where(F.col("_arrival") == 1)
+              .drop("_arrival"))
 
 
 # --------------------------------------------------------------------------- local stand-ins for AUTO CDC

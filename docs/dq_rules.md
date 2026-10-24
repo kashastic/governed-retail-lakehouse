@@ -6,7 +6,7 @@ pipeline itself is wrong?*
 | Action | When | Mechanism | Where the rows go |
 |---|---|---|---|
 | **Drop + quarantine** | The row can't be used: no key, impossible value | `expect_all_or_drop` on a private validated table + a quarantine table driven by the same rules dict | `silver.*_quarantine`, with `failed_rules` |
-| **Remove silently, count** | Exact copy of a row already received (re-send) | content hash + `dropDuplicatesWithinWatermark` (3-day watermark) | nowhere: counted by reconciliation |
+| **Remove silently, count** | Exact copy of a row already received (re-send) | content hash; a materialized view keeps the first arrival of each hash | nowhere: counted by reconciliation |
 | **Keep + flag (warn)** | The row is valid but a reference is missing | left join to unknown member + `expect` (warn) | gold, with `is_orphan_*` = true |
 | **Fail the update** | The output is wrong whatever the input was | `expect_or_fail` on a key-check view | the update stops; nothing downstream refreshes from it |
 
@@ -44,6 +44,29 @@ The private `order_lines_validated` table carries the expectations and de-duplic
 log therefore counts every bad row that *arrived*, including bad rows inside a re-sent file. That makes three
 numbers agree exactly: the generator manifest, the expectation metrics and the quarantine row counts.
 
+## Why de-duplication is a materialized view
+
+The first version removed re-sends inside a streaming table with `dropDuplicatesWithinWatermark` (3-day watermark).
+On Databricks, the gold fact then lagged exactly one pipeline update behind silver:
+
+| Update | Landed | `silver.order_lines` committed | `gold.fact_order_line` wrote |
+|---|---|---|---|
+| 1 | backfill | 325,070 rows | 325,070 ✅ |
+| 3 | batch 1 | +796 rows at 15:19:00 | 325,070 ❌ (planned 15:19:26) |
+| 4 | batches 2–7 | +5,197 rows at 15:24:14 | 325,866 ❌ (planned 15:24:35) |
+
+Silver was correct (the validation notebook reconciled it exactly), and the pipeline graph listed silver as an input
+to the fact. Still, the fact's full recompute read the snapshot from before the update, even though the new rows had
+been committed 20 seconds earlier. The materialized views refreshed incrementally (`fact_return`, `dim_customer`)
+were current. The stateful stream also wrote a second, empty commit at the end of every update (the watermark
+batch), which nothing else in the pipeline does.
+
+The fix removes all streaming state: the validated table stays an append-only stream with the expectations, and a
+materialized view keeps the first arrival of each content hash (`row_number()` over the hash, ordered by load time
+and file). Side benefit: re-sends are now caught however late they arrive, not only within 3 days.
+`notebooks/04_validate.py` is the regression check. "Net sales preserved silver -> gold" fails if gold falls behind
+silver again.
+
 ## Ground truth after all 15 batches
 
 | | Order lines | Returns |
@@ -61,7 +84,7 @@ and `tests/test_end_to_end.py` locally.
 
 - Quarantined rows are not reprocessed automatically. A fix upstream re-delivers the record, which flows through
   normally.
-- The watermark forgets hashes older than 3 days of event time. A copy re-sent more than 3 days later would pass
-  de-duplication, and the gold key check would then fail the update. That is the intended backstop.
+- The de-duplication view looks at all validated history on each refresh. At this size it costs seconds. At real
+  scale it would be limited to a recent window per partition, or replaced by AUTO CDC keyed on the hash.
 - Validation views don't block downstream tables inside the same pipeline. A failed key check stops the update,
   but to gate a separate consumer you'd put the checks in their own job task.

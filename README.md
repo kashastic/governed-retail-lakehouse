@@ -34,7 +34,7 @@ flowchart LR
 |---|---|---|
 | Landing | 1-year backfill + 14 daily batches of JSON/CSV files. Batch 7 re-sends batch 6's orders. | `generator/` |
 | Bronze | Auto Loader streaming tables. Fixed schemas, rescued-data column, source file and load time on every row. | `pipelines/transformations/bronze.py` |
-| Silver | Explode orders into lines; validate with `expect_all_or_drop`; same rules feed quarantine tables; remove exact re-sends by content hash within a watermark; AUTO CDC for customer history (SCD2) and products (SCD1). | `silver.py` |
+| Silver | Explode orders into lines; validate with `expect_all_or_drop` in an append-only stream; same rules feed quarantine tables; a materialized view removes exact re-sends by content hash (first arrival kept); AUTO CDC for customer history (SCD2) and products (SCD1). | `silver.py` |
 | Gold | Star schema as materialized views: point-in-time customer join, unknown members instead of dropped rows, returns attached to their order line, column comments from code. | `gold.py`, `utilities/catalog_docs.py` |
 | DQ | `expect_or_fail` key checks; issue summary by feed, batch and rule. | `dq_checks.py` |
 | Semantic | Metric Views for sales (by order date) and returns (by return date), with synonyms for Genie. | `semantic/` |
