@@ -3,8 +3,8 @@
 > **Governed Retail AI/BI Lakehouse** 2026 | Databricks, PySpark, Lakeflow, Unity Catalog
 > Built incremental Bronze, Silver and Gold retail pipelines in PySpark and Lakeflow with data-quality checks,
 > routing failed records to quarantine tables. Defined revenue, AOV and return-rate KPIs in Unity Catalog Metric
-> Views, built an AI/BI dashboard on them, and evaluated Genie on a fixed 25-question set, fixing the join and
-> metric-definition errors it exposed.
+> Views, built an AI/BI dashboard on them, and evaluated Genie on a fixed 25-question set, where moving it from raw
+> tables onto the Metric Views fixed every metric-definition and ambiguity error it made (56% → 88% accuracy).
 
 Rule: every phrase points to something in the repo. If a row below has no evidence yet, the phrase isn't ready.
 
@@ -19,7 +19,8 @@ Rule: every phrase points to something in the repo. If a row below has no eviden
 | revenue, AOV and return-rate KPIs in Metric Views | `semantic/sales_metrics.sql`, `docs/metric_definitions.md` (12 checks against plain SQL, all equal), `screenshots/metric_view.png` | TODO screenshot |
 | AI/BI dashboard on them | `dashboards/retail_kpis.lvdash.json` (datasets are the metric views), `dashboards/BUILD.md` (filtered counters equal the validation numbers), `screenshots/dashboard_*.png` | TODO screenshots |
 | evaluated Genie on a fixed 25-question set | `genie/benchmarks.csv`, `genie/runs/run_A.csv`, `run_B.csv`, `run_C.csv`, `docs/evaluation_report.md`, `screenshots/genie_run_*.png` | done; TODO screenshots |
-| fixing the join and metric-definition errors it exposed | `docs/evaluation_report.md` (A → B table, before/after per question) | **Reword.** Genie made no join error in any run. It made metric-definition and ambiguity errors, and the Metric Views fixed all of them. |
+| moving it from raw tables onto the Metric Views fixed every metric-definition and ambiguity error it made | `docs/evaluation_report.md` (A → B table, before/after per question); failure types in `genie/runs/run_A.csv` (2 metric definition, 3 ambiguity) and `run_B.csv` (none) | done |
+| (56% → 88% accuracy) | `python -m tools.score_runs`, pasted in `docs/evaluation_report.md`: strict accuracy over all 25 questions. 56% → 80% is the metric views alone; 80% → 88% is run C's one instruction about answer shape. After manual review: 80% → 100% | done. Know the split: the 88% includes the instruction |
 
 ## Numbers to know
 
