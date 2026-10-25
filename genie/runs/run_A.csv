@@ -1,26 +1,26 @@
 id,split,category,question,verdict,failure_type,genie_sql,notes
-B01,dev,kpi,What was net revenue in July 2026?,,,,
-B02,dev,kpi,How many orders were placed in Q2 2026?,,,,
-B03,holdout,kpi,What was the average order value in August 2026?,,,,
-B04,dev,kpi,How many units did we sell in March 2026?,,,,
-B05,holdout,kpi,What were gross sales from September 2025 through August 2026?,,,,
-B06,dev,kpi,How many customers placed at least one order in June 2026?,,,,
-B07,dev,breakdown,"Show net sales by product category for Q1 2026, highest first.",,,,
-B08,holdout,breakdown,How many orders were placed in each month from September 2025 to August 2026?,,,,
-B09,dev,breakdown,Which 5 brands had the highest net sales in 2026?,,,,
-B10,holdout,breakdown,What were net sales by sales channel in May 2026?,,,,
-B11,dev,breakdown,Which country had the highest average order value in Q2 2026?,,,,
-B12,dev,returns,What was the return rate for Clothing for orders placed in May 2026?,,,,
-B13,holdout,returns,Show the return rate by product category for orders placed in Q1 2026.,,,,
-B14,dev,returns,What were the top 3 return reasons by returned units for returns received in 2026?,,,,
-B15,holdout,returns,How much money was refunded for returns received in August 2026?,,,,
-B16,holdout,returns,Which product category had the highest return rate for orders placed in the first half of 2026?,,,,
-B17,dev,ambiguous,How much did we sell in August 2026?,,,,
-B18,dev,ambiguous,What was the return rate in July 2026?,,,,
-B19,holdout,ambiguous,What was our revenue in Q2 2026?,,,,
-B20,dev,ambiguous,Who were our top 10 customers in 2026?,,,,
-B21,holdout,ambiguous,What was the average basket size in July 2026?,,,,
-B22,dev,join,What were net sales in August 2026 by customer membership tier?,,,,
-B23,dev,join,How many orders did Premium members place in Q2 2026?,,,,
-B24,holdout,join,What was the return rate for orders from customers in Germany in Q1 2026?,,,,
-B25,dev,join,What share of net sales in 2026 came from products that are missing from the product catalogue?,,,,
+B01,dev,kpi,What was net revenue in July 2026?,bad,wrong_metric_definition,SELECT SUM(`net_amount`) as total_net_revenue FROM `retail`.`gold`.`fact_order_line` WHERE `order_date` >= '2026-07-01' AND `order_date` < '2026-08-01',"Net revenue computed as SUM(net_amount) without subtracting refunds: 3,860,353.18 (July net sales) instead of 3,520,103.47."
+B02,dev,kpi,How many orders were placed in Q2 2026?,good,,,
+B03,holdout,kpi,What was the average order value in August 2026?,good,,,
+B04,dev,kpi,How many units did we sell in March 2026?,good,,,
+B05,holdout,kpi,What were gross sales from September 2025 through August 2026?,good,,,
+B06,dev,kpi,How many customers placed at least one order in June 2026?,good,,,
+B07,dev,breakdown,"Show net sales by product category for Q1 2026, highest first.",good,,,
+B08,holdout,breakdown,How many orders were placed in each month from September 2025 to August 2026?,good,,,
+B09,dev,breakdown,Which 5 brands had the highest net sales in 2026?,good,,,
+B10,holdout,breakdown,What were net sales by sales channel in May 2026?,good,,,
+B11,dev,breakdown,Which country had the highest average order value in Q2 2026?,bad,scoring_artifact,"SELECT c.`country`, COUNT(DISTINCT f.`order_id`) as order_count, SUM(f.`net_amount`) as total_revenue, SUM(f.`net_amount`) / COUNT(DISTINCT f.`order_id`) as avg_order_value FROM `retail`.`gold`.`fact_order_line` f JOIN `retail`.`gold`.`dim_customer` c ON f.`customer_key` = c.`customer_key` WHERE f.`order_date` >= '2026-04-01' AND f.`order_date` < '2026-07-01' AND c.`country` != 'Unknown' GROUP BY c.`country` ORDER BY avg_order_value DESC",Correct: AT at 322.83 is the top row. Listed all countries with extra columns instead of only the top one.
+B12,dev,returns,What was the return rate for Clothing for orders placed in May 2026?,bad,scoring_artifact,"SELECT p.`category`, SUM(f.`quantity`) AS total_quantity_sold, SUM(f.`returned_quantity`) AS total_returned_quantity, ROUND(SUM(f.`returned_quantity`) * 100.0 / SUM(f.`quantity`), 2) AS return_rate_percent FROM `retail`.`gold`.`fact_order_line` f JOIN `retail`.`gold`.`dim_product` p ON f.`product_key` = p.`product_key` WHERE p.`category` = 'Clothing' AND f.`order_date` >= '2026-05-01' AND f.`order_date` < '2026-06-01' GROUP BY p.`category`","Correct: 1,415 / 6,395 = 22.13% (0.221267). Percentage rounded to 2 decimals, plus extra columns."
+B13,holdout,returns,Show the return rate by product category for orders placed in Q1 2026.,bad,missing_metadata,"SELECT p.`category`, SUM(f.`quantity`) AS total_quantity, SUM(f.`returned_quantity`) AS returned_quantity, ROUND(SUM(f.`returned_quantity`) * 100.0 / SUM(f.`quantity`), 2) AS return_rate_pct FROM `retail`.`gold`.`fact_order_line` f JOIN `retail`.`gold`.`dim_product` p ON f.`product_key` = p.`product_key` WHERE f.`order_date` >= '2026-01-01' AND f.`order_date` < '2026-04-01' AND p.`category` != 'Unknown' GROUP BY p.`category` ORDER BY return_rate_pct DESC","The 8 catalogue categories match (Clothing 21.16% = 0.211575), but Genie filtered out the Unknown category (orphan lines) on its own, so one row is missing."
+B14,dev,returns,What were the top 3 return reasons by returned units for returns received in 2026?,good,,,
+B15,holdout,returns,How much money was refunded for returns received in August 2026?,good,,,
+B16,holdout,returns,Which product category had the highest return rate for orders placed in the first half of 2026?,bad,scoring_artifact,"WITH order_lines_h1_2026 AS (SELECT p.`category`, SUM(f.`quantity`) AS total_quantity_sold, SUM(f.`returned_quantity`) AS total_quantity_returned FROM `retail`.`gold`.`fact_order_line` f INNER JOIN `retail`.`gold`.`dim_product` p ON f.`product_key` = p.`product_key` WHERE f.`order_date` >= '2026-01-01' AND f.`order_date` <= '2026-06-30' AND p.`category` != 'Unknown' GROUP BY p.`category`) SELECT `category`, `total_quantity_sold`, `total_quantity_returned`, ROUND((`total_quantity_returned` * 100.0) / `total_quantity_sold`, 2) AS return_rate_pct FROM order_lines_h1_2026 ORDER BY return_rate_pct DESC",Correct: Clothing at 21.2% (0.211979) is the top row. Listed every category instead of only the top one.
+B17,dev,ambiguous,How much did we sell in August 2026?,good,,,
+B18,dev,ambiguous,What was the return rate in July 2026?,bad,scoring_artifact,"SELECT SUM(`quantity`) AS total_quantity_sold, SUM(`returned_quantity`) AS total_quantity_returned, ROUND(SUM(`returned_quantity`) * 100.0 / NULLIF(SUM(`quantity`), 0), 2) AS return_rate_pct FROM `retail`.`gold`.`fact_order_line` WHERE `order_date` >= '2026-07-01' AND `order_date` < '2026-08-01'","Correct: 2,740 / 33,378 = 8.21% (0.082090), by order date and in units. The scorer called it a wrong metric; the only difference is the percentage and extra columns."
+B19,holdout,ambiguous,What was our revenue in Q2 2026?,bad,wrong_metric_definition,SELECT SUM(`net_amount`) as total_revenue FROM `retail`.`gold`.`fact_order_line` WHERE `order_date` >= '2026-04-01' AND `order_date` < '2026-07-01',"Revenue read as net sales: 12,025,280.84, the recorded wrong reading, instead of 10,997,554.48."
+B20,dev,ambiguous,Who were our top 10 customers in 2026?,bad,unresolved_ambiguity,"SELECT f.`customer_id`, c.`city`, c.`country`, c.`membership`, SUM(f.`net_amount`) as total_net_sales, COUNT(DISTINCT f.`order_id`) as order_count, SUM(f.`quantity`) as total_units FROM `retail`.`gold`.`fact_order_line` f LEFT JOIN `retail`.`gold`.`dim_customer` c ON f.`customer_key` = c.`customer_key` WHERE YEAR(f.`order_date`) = 2026 GROUP BY f.`customer_id`, c.`city`, c.`country`, c.`membership` ORDER BY total_net_sales DESC LIMIT 10","Ranked by net sales, not net revenue: the same 10 customers in a different order (C015584 2nd instead of 5th). Also grouped by SCD2 attributes, which would split a customer who changed tier during 2026."
+B21,holdout,ambiguous,What was the average basket size in July 2026?,bad,unresolved_ambiguity,"SELECT AVG(order_total) AS avg_basket_size, COUNT(DISTINCT order_id) AS total_orders, SUM(order_total) AS total_revenue FROM (SELECT `order_id`, SUM(`net_amount`) AS order_total FROM `retail`.`gold`.`fact_order_line` WHERE `order_date` >= '2026-07-01' AND `order_date` <= '2026-07-31' GROUP BY `order_id`)",Basket size read as order value: 315.67 (the recorded wrong reading) instead of 2.73 units per order.
+B22,dev,join,What were net sales in August 2026 by customer membership tier?,good,,,Joined fact to dim_customer on customer_key (SCD2-safe) without instructions.
+B23,dev,join,How many orders did Premium members place in Q2 2026?,good,,,Joined on customer_key (SCD2-safe) without instructions.
+B24,holdout,join,What was the return rate for orders from customers in Germany in Q1 2026?,bad,scoring_artifact,"SELECT SUM(fol.quantity) as total_quantity_sold, SUM(fol.returned_quantity) as total_returned_quantity, SUM(fol.net_amount) as total_net_sales, SUM(fol.refund_amount) as total_refund_amount, ROUND(SUM(fol.returned_quantity) * 100.0 / NULLIF(SUM(fol.quantity), 0), 2) as return_rate_by_quantity_pct, ROUND(SUM(fol.refund_amount) * 100.0 / NULLIF(SUM(fol.net_amount), 0), 2) as return_rate_by_amount_pct FROM `retail`.`gold`.`fact_order_line` fol INNER JOIN `retail`.`gold`.`dim_customer` dc ON fol.customer_key = dc.customer_key WHERE dc.country = 'DE' AND fol.order_date >= '2026-01-01' AND fol.order_date < '2026-04-01'","Correct: 3,321 / 39,976 = 0.083075. Mapped Germany to DE and joined on customer_key unaided; added a value-based rate as well."
+B25,dev,join,What share of net sales in 2026 came from products that are missing from the product catalogue?,bad,scoring_artifact,"SELECT SUM(CASE WHEN `is_orphan_product` = true THEN `net_amount` ELSE 0 END) AS orphan_net_sales, SUM(CASE WHEN `is_orphan_product` = false THEN `net_amount` ELSE 0 END) AS catalogued_net_sales, SUM(`net_amount`) AS total_net_sales, (SUM(CASE WHEN `is_orphan_product` = true THEN `net_amount` ELSE 0 END) / SUM(`net_amount`)) * 100 AS orphan_sales_percentage FROM `retail`.`gold`.`fact_order_line` WHERE YEAR(`order_date`) = 2026","Correct: 0.2456% = 0.0024559. Expressed as a percentage, with three extra columns."
