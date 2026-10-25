@@ -141,10 +141,10 @@ measures:
   - name: active_customers_30d
     expr: COUNT(DISTINCT source.customer_id)
     display_name: "Active customers (trailing 30 days)"
-    comment: "Distinct customers with an order in the 30 days up to each order date."
+    comment: "Distinct customers with an order in the 30 days up to and including each date."
     window:
       - order: order_date
-        range: trailing 30 day
+        range: trailing 30 day inclusive
         semiadditive: last
 $$
 
@@ -160,3 +160,22 @@ SELECT order_month,
 FROM retail.semantic.sales_metrics
 GROUP BY order_month
 ORDER BY order_month
+
+-- COMMAND ----------
+
+-- Which days does active_customers_30d cover? Compare it on 2026-08-31 with plain SQL over the candidate
+-- windows. Without `inclusive` the window leaves out the day itself (seen in the smoke test).
+WITH by_day AS (
+  SELECT order_date, MEASURE(active_customers_30d) AS active_customers_30d
+  FROM retail.semantic.sales_metrics
+  GROUP BY order_date
+)
+SELECT d.active_customers_30d,
+       (SELECT COUNT(DISTINCT customer_id) FROM retail.gold.fact_order_line
+         WHERE order_date BETWEEN DATE'2026-08-02' AND DATE'2026-08-31') AS days_minus_29_to_day,
+       (SELECT COUNT(DISTINCT customer_id) FROM retail.gold.fact_order_line
+         WHERE order_date BETWEEN DATE'2026-08-01' AND DATE'2026-08-31') AS days_minus_30_to_day,
+       (SELECT COUNT(DISTINCT customer_id) FROM retail.gold.fact_order_line
+         WHERE order_date BETWEEN DATE'2026-08-01' AND DATE'2026-08-30') AS days_minus_30_to_minus_1
+FROM by_day d
+WHERE d.order_date = DATE'2026-08-31'
