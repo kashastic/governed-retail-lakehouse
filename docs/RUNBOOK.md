@@ -116,8 +116,8 @@ Screenshot: Catalog Explorer → `retail.semantic.sales_metrics` → Overview (m
 
 ## Step 9 · Governance (20 min)
 
-1. Run `governance/masks.sql`, `governance/grants.sql`, `governance/comments_tags.sql`. Note which tag cells
-   needed the UI fallback.
+1. Run `governance/masks.sql`, `governance/grants.sql`, `governance/comments_tags.sql`. On Free Edition every
+   cell ran from SQL, including the column tags on `silver.customers`; no UI fallback was needed.
 2. Invite a second email address (Settings → Identity and access → Users), add it to `retail_analysts`, give the
    group **Can use** on the SQL warehouse. Sign in as that user in a private window and run the four test
    queries at the bottom of `grants.sql`.

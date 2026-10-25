@@ -6,8 +6,9 @@
 -- MAGIC so they can't drift from the code. Metric views carry their own descriptions and synonyms in YAML.
 -- MAGIC This notebook adds what the pipeline can't: tags for classifying data.
 -- MAGIC
--- MAGIC Catalog and schema tags always work. Tags on pipeline-owned tables may be refused from SQL. If a cell fails,
--- MAGIC add the same tag in **Catalog Explorer → table → Tags**, and note which way worked.
+-- MAGIC Catalog and schema tags always work. Column tags on the pipeline-owned `silver.customers` worked from SQL too
+-- MAGIC (Free Edition, 2026-10-25). If a cell fails in another workspace, add the same tag in
+-- MAGIC **Catalog Explorer → table → Tags**.
 
 -- COMMAND ----------
 

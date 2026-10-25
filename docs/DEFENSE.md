@@ -161,6 +161,9 @@ Before: net sales per order at checkout. Revenue after returns is `net_revenue`.
 - Lineage from the metric views back to the files.
 - One definition of each KPI.
 
+Checked on Databricks: `SHOW GRANTS` gives analysts `USE SCHEMA` + `SELECT` on `gold` and nothing on `silver`, and
+`information_schema.column_tags` lists the three PII columns in `silver.customers`.
+
 **Limitations?**
 Free Edition has no account console or SCIM, but groups created in the workspace settings work, and so do grants
 to them (smoke test). Unity Catalog column masks on
