@@ -68,13 +68,14 @@ and file). Side benefit: re-sends are now caught however late they arrive, not o
 silver again.
 
 **Verified on Databricks (2026-10-25).** The two silver streaming tables had to be dropped once: a pipeline can't
-change a dataset from streaming table to materialized view in place. After that, a full refresh, then an ordinary
-update with one new batch:
+change a dataset from streaming table to materialized view in place. After that, a full refresh, then ordinary
+updates with new batches:
 
 | Step | `silver.order_lines` | Net sales silver = gold | Orphan lines / returns in gold | `04_validate` |
 |---|---|---|---|---|
 | Full refresh (batches 0–7) | 331,063 | €49,983,899.72 | 964 / 93 | 11/11 PASS |
 | Ordinary update with batch 8 (+839 valid lines) | 331,902 | €50,096,231.15 | 968 / 94 | 11/11 PASS |
+| Ordinary update with batches 9–14 (all 15 batches) | 337,289 | €50,889,830.02 | 983 / 95 | 23/23 PASS, incl. the 12 metric-view checks |
 
 In the batch-8 update `fact_order_line` was again a full recompute, the refresh type that read stale data before,
 and this time it included the new rows in the same update. The de-duplication views refreshed incrementally.
@@ -90,7 +91,8 @@ and this time it included the new rows in the same update. The de-duplication vi
 | Kept but flagged as orphans | 983 | 95 |
 
 Reconciliation: `arrived = silver + quarantined + duplicates`. Checked by `notebooks/04_validate.py` in Databricks
-and `tests/test_end_to_end.py` locally.
+and `tests/test_end_to_end.py` locally. On Databricks (2026-10-25) every number in this table matched exactly,
+per rule as well as in total.
 
 ## Known limits
 

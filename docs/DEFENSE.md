@@ -16,7 +16,7 @@ Rule: every phrase points to something in the repo. If a row below has no eviden
 | in PySpark and Lakeflow | `pipelines/utilities/transforms.py` (pure PySpark, unit-tested), `from pyspark import pipelines as dp` | done |
 | data-quality checks | `pipelines/utilities/rules.py`, `docs/dq_rules.md`, `screenshots/expectations.png` | TODO screenshot |
 | routing failed records to quarantine tables | `silver.*_quarantine` + `screenshots/validate_pass.png`: quarantine = injected defects, exactly | TODO |
-| revenue, AOV and return-rate KPIs in Metric Views | `semantic/sales_metrics.sql`, `docs/metric_definitions.md`, `screenshots/metric_view.png` | TODO screenshot |
+| revenue, AOV and return-rate KPIs in Metric Views | `semantic/sales_metrics.sql`, `docs/metric_definitions.md` (12 checks against plain SQL, all equal), `screenshots/metric_view.png` | TODO screenshot |
 | AI/BI dashboard on them | `dashboards/retail_kpis.lvdash.json`, `screenshots/dashboard_*.png` | TODO |
 | evaluated Genie on a fixed 25-question set | `genie/benchmarks.csv`, `genie/runs/run_*.csv`, `screenshots/genie_run_*.png` | TODO |
 | fixing the join and metric-definition errors it exposed | `docs/evaluation_report.md` (before/after per question) | TODO. If no join error showed up, change "join and metric-definition" to the failure types that did. |
@@ -30,6 +30,9 @@ Rule: every phrase points to something in the repo. If a row below has no eviden
 | Bad rows quarantined | 3,105 order lines (4 rules), 155 returns (2 rules): equal to the injected counts |
 | Duplicates removed | 2,757 order lines (incl. one re-sent file), 169 returns |
 | Orphans kept and flagged | 983 order lines (Unknown product), 95 returns |
+| Validation on Databricks | `04_validate.py`: 23 of 23 checks pass after all 15 batches, including 12 metric view = plain SQL on gold |
+| KPIs, all time | Net sales €50.89M, net revenue €46.62M, 158,960 orders, AOV €320.14, return rate 8.03%, 17,560 active customers |
+| KPIs, Aug 2026 | Net sales €4,058,704.60, AOV €312.30, return rate 7.60%, 12,996 orders |
 | Genie accuracy (holdout) | Run A: TODO · Run B: TODO · Run C: TODO |
 | Best example of a fixed error | TODO |
 
@@ -159,7 +162,8 @@ Before: net sales per order at checkout. Revenue after returns is `net_revenue`.
 - One definition of each KPI.
 
 **Limitations?**
-Free Edition has no account console or SCIM: TODO, whichever way groups worked out. Unity Catalog column masks on
+Free Edition has no account console or SCIM, but groups created in the workspace settings work, and so do grants
+to them (smoke test). Unity Catalog column masks on
 pipeline-owned tables have to be declared inside the pipeline, so I used a masking view.
 
 ### Genie evaluation
@@ -195,8 +199,12 @@ definition.
 - Liquid clustering on the facts.
 - Data-quality monitoring on the gold tables.
 
-**What did Free Edition force on you?** TODO. Write down what actually happened, e.g. one pipeline, 2X-Small
-warehouse, quota.
+**What did Free Edition force on you?**
+- Serverless only, and little of it at once. The first pipeline run failed with `RESOURCE_EXHAUSTED` while notebook
+  sessions were still attached. Later a notebook wouldn't connect while two other notebooks held sessions. So I
+  terminate notebook sessions before every pipeline run.
+- One 2X-Small SQL warehouse and a daily compute quota, which is why the dataset is kept at about 57 MB.
+- No account console, so no SCIM or identity-provider groups.
 
 ## Be upfront about
 

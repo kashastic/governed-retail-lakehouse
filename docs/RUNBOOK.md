@@ -160,6 +160,8 @@ Screenshots: benchmark results page for each run → `genie_run_A.png`, `genie_r
 | `DELTA_...` or expectation `unique_*` failed | A gold key check fired | Paste the failing table to Claude: this means a bug |
 | Compute shut down for the day, or SQL warehouse "Clusters are failing to launch" | Free Edition daily quota | Wait until tomorrow; nothing is lost |
 | `RESOURCE_EXHAUSTED: You've hit the limit for serverless compute` | Notebook sessions still attached | Terminate them (Serverless ▾ → › → Terminate), run again |
+| Run all does nothing; the dot next to Serverless stays hollow ("Activate compute") | Other notebooks still hold serverless sessions | Terminate those sessions, then Run all again |
+| "Attached cluster is terminated" when running a notebook | Its previous session ended | Select resource → **General compute** (Serverless) for Python notebooks, or SQL Warehouse for SQL ones → Start, attach and run |
 | Gold totals one update behind silver (`04_validate`: "Net sales preserved" FAIL) | The old streaming de-dup (fixed in commit "Move exact-duplicate removal into materialized views") | Pull the Git folder, then **Full refresh all** |
 | Error that a table changed from streaming table to materialized view | Dataset type changed in the code | Pipeline → Run pipeline ▾ → **Full refresh all** |
 | `CREATE CATALOG` not permitted | Free Edition restriction | Use catalog `workspace`: replace `retail.` everywhere and set the pipeline's default catalog |
