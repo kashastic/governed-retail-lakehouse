@@ -20,3 +20,8 @@ GROUP BY order_month;
 -- ds_data_issues (data-quality page)
 SELECT feed, batch_id, issue, handling, `rows`
 FROM retail.dq.issue_summary;
+
+-- ds_data_issues_daily: the same without the backfill, whose ~4,000 issues would flatten the daily batches.
+SELECT feed, batch_id, issue, handling, `rows`
+FROM retail.dq.issue_summary
+WHERE batch_id <> 'batch_000';

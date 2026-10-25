@@ -12,6 +12,7 @@ file in a Git folder as an AI/BI dashboard, so after a pull it appears as `retai
 | `ds_returns` | metric view `retail.semantic.returns_metrics` |
 | `ds_return_cohort_maturity` | SQL from `datasets.sql` |
 | `ds_data_issues` | SQL from `datasets.sql` |
+| `ds_data_issues_daily` | SQL from `datasets.sql` (backfill excluded) |
 
 The metric views are datasets themselves. Each widget asks for `MEASURE(aov)` at its own grain, so no ratio is
 ever averaged across rows.
@@ -22,7 +23,8 @@ ever averaged across rows.
 |---|---|---|---|
 | Order date | Filter (date range) | `ds_sales` | `order_date` |
 | Product category, Sales channel, Customer country | Filters (multi-select) | `ds_sales` | `category`, `channel`, `country` |
-| Net revenue, Net sales, Orders, Average order value, Active customers | Counters | `ds_sales` | `net_revenue`, `net_sales`, `orders`, `aov`, `active_customers` |
+| Net revenue, Net sales, Average order value | Counters | `ds_sales` | `net_revenue`, `net_sales`, `aov` (EUR) |
+| Orders, Active customers | Counters | `ds_sales` | `orders`, `active_customers` |
 | Return rate | Counter | `ds_sales` | `return_rate` (as %) |
 | Net sales and net revenue by order month | Line | `ds_sales` | x `order_month`, y `net_sales` and `net_revenue` |
 | Net sales by category | Bar | `ds_sales` | x `net_sales`, y `category`, sorted descending |
@@ -45,7 +47,7 @@ ever averaged across rows.
 |---|---|---|---|
 | Note | Text | | Where quarantined, orphan and duplicate rows go. |
 | Issues by type | Bar | `ds_data_issues` | x `rows` (sum), y `issue`, colour `handling` |
-| Issues by batch | Stacked bar | `ds_data_issues` | x `batch_id`, y `rows` (sum), colour `issue` |
+| Issues per daily batch | Stacked bar | `ds_data_issues_daily` | x `batch_id`, y `rows` (sum), colour `issue`. The backfill's ~4,000 issues would flatten the daily batches. |
 | Detail | Table | `ds_data_issues` | all columns |
 
 ## Changing it

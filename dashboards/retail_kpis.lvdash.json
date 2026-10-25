@@ -29,6 +29,15 @@
         "SELECT feed, batch_id, issue, handling, `rows`\n",
         "FROM retail.dq.issue_summary"
       ]
+    },
+    {
+      "name": "ds_data_issues_daily",
+      "displayName": "Data issues in the daily batches (backfill excluded)",
+      "queryLines": [
+        "SELECT feed, batch_id, issue, handling, `rows`\n",
+        "FROM retail.dq.issue_summary\n",
+        "WHERE batch_id <> 'batch_000'"
+      ]
     }
   ],
   "pages": [
@@ -248,12 +257,21 @@
               "encodings": {
                 "value": {
                   "fieldName": "measure(net_revenue)",
-                  "displayName": "Net revenue (EUR)"
+                  "displayName": "Net revenue",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Net revenue (EUR)"
+                "title": "Net revenue"
               },
               "data": {
                 "queryName": "main_query"
@@ -263,7 +281,7 @@
           "position": {
             "x": 0,
             "y": 2,
-            "width": 2,
+            "width": 4,
             "height": 3
           }
         },
@@ -291,12 +309,21 @@
               "encodings": {
                 "value": {
                   "fieldName": "measure(net_sales)",
-                  "displayName": "Net sales (EUR)"
+                  "displayName": "Net sales",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Net sales (EUR)"
+                "title": "Net sales"
               },
               "data": {
                 "queryName": "main_query"
@@ -304,9 +331,9 @@
             }
           },
           "position": {
-            "x": 2,
+            "x": 4,
             "y": 2,
-            "width": 2,
+            "width": 4,
             "height": 3
           }
         },
@@ -347,9 +374,9 @@
             }
           },
           "position": {
-            "x": 4,
+            "x": 8,
             "y": 2,
-            "width": 2,
+            "width": 4,
             "height": 3
           }
         },
@@ -377,12 +404,21 @@
               "encodings": {
                 "value": {
                   "fieldName": "measure(aov)",
-                  "displayName": "Average order value (EUR)"
+                  "displayName": "Average order value",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Average order value (EUR)"
+                "title": "Average order value"
               },
               "data": {
                 "queryName": "main_query"
@@ -390,9 +426,9 @@
             }
           },
           "position": {
-            "x": 6,
-            "y": 2,
-            "width": 2,
+            "x": 0,
+            "y": 5,
+            "width": 4,
             "height": 3
           }
         },
@@ -425,7 +461,7 @@
                     "type": "number-percent",
                     "decimalPlaces": {
                       "type": "max",
-                      "places": 1
+                      "places": 2
                     }
                   }
                 }
@@ -440,9 +476,9 @@
             }
           },
           "position": {
-            "x": 8,
-            "y": 2,
-            "width": 2,
+            "x": 4,
+            "y": 5,
+            "width": 4,
             "height": 3
           }
         },
@@ -483,9 +519,9 @@
             }
           },
           "position": {
-            "x": 10,
-            "y": 2,
-            "width": 2,
+            "x": 8,
+            "y": 5,
+            "width": 4,
             "height": 3
           }
         },
@@ -557,7 +593,7 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 8,
             "width": 7,
             "height": 6
           }
@@ -626,7 +662,7 @@
           },
           "position": {
             "x": 7,
-            "y": 5,
+            "y": 8,
             "width": 5,
             "height": 6
           }
@@ -683,7 +719,7 @@
           },
           "position": {
             "x": 0,
-            "y": 11,
+            "y": 14,
             "width": 12,
             "height": 6
           }
@@ -720,12 +756,21 @@
               "encodings": {
                 "value": {
                   "fieldName": "measure(refunds_paid)",
-                  "displayName": "Refunds paid (EUR, by return date)"
+                  "displayName": "Refunds paid (by return date)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
                 }
               },
               "frame": {
                 "showTitle": true,
-                "title": "Refunds paid (EUR, by return date)"
+                "title": "Refunds paid (by return date)"
               },
               "data": {
                 "queryName": "main_query"
@@ -1162,7 +1207,7 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "ds_data_issues",
+                  "datasetName": "ds_data_issues_daily",
                   "fields": [
                     {
                       "name": "batch_id",
@@ -1209,7 +1254,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Issues by batch"
+                "title": "Issues per daily batch (backfill excluded)"
               },
               "data": {
                 "queryName": "main_query"
