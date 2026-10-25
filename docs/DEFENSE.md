@@ -18,8 +18,8 @@ Rule: every phrase points to something in the repo. If a row below has no eviden
 | routing failed records to quarantine tables | `silver.*_quarantine` + `screenshots/validate_pass.png`: quarantine = injected defects, exactly | TODO |
 | revenue, AOV and return-rate KPIs in Metric Views | `semantic/sales_metrics.sql`, `docs/metric_definitions.md` (12 checks against plain SQL, all equal), `screenshots/metric_view.png` | TODO screenshot |
 | AI/BI dashboard on them | `dashboards/retail_kpis.lvdash.json` (datasets are the metric views), `dashboards/BUILD.md` (filtered counters equal the validation numbers), `screenshots/dashboard_*.png` | TODO screenshots |
-| evaluated Genie on a fixed 25-question set | `genie/benchmarks.csv`, `genie/runs/run_*.csv`, `screenshots/genie_run_*.png` | TODO |
-| fixing the join and metric-definition errors it exposed | `docs/evaluation_report.md` (before/after per question) | TODO. If no join error showed up, change "join and metric-definition" to the failure types that did. |
+| evaluated Genie on a fixed 25-question set | `genie/benchmarks.csv`, `genie/runs/run_A.csv`, `run_B.csv`, `run_C.csv`, `docs/evaluation_report.md`, `screenshots/genie_run_*.png` | done; TODO screenshots |
+| fixing the join and metric-definition errors it exposed | `docs/evaluation_report.md` (A → B table, before/after per question) | **Reword.** Genie made no join error in any run. It made metric-definition and ambiguity errors, and the Metric Views fixed all of them. |
 
 ## Numbers to know
 
@@ -33,8 +33,10 @@ Rule: every phrase points to something in the repo. If a row below has no eviden
 | Validation on Databricks | `04_validate.py`: 23 of 23 checks pass after all 15 batches, including 12 metric view = plain SQL on gold |
 | KPIs, all time | Net sales €50.89M, net revenue €46.62M, 158,960 orders, AOV €320.14, return rate 8.03%, 17,560 active customers |
 | KPIs, Aug 2026 | Net sales €4,058,704.60, AOV €312.30, return rate 7.60%, 12,996 orders |
-| Genie accuracy (holdout) | Run A: TODO · Run B: TODO · Run C: TODO |
-| Best example of a fixed error | TODO |
+| Genie accuracy, all 25 (strict / reviewed) | Run A tables 56% / 80% · Run B metric views 80% / 100% · Run C + one instruction 88% / 100% |
+| Genie accuracy, holdout 10 (strict / reviewed) | Run A 50% / 70% · Run B 70% / 100% · Run C 80% / 100% |
+| Real Genie errors | Run A: 5 (2 metric definition, 3 ambiguity) · Runs B and C: 0. No join errors in any run |
+| Best example of a fixed error | B19 "What was our revenue in Q2 2026?": on the tables Genie summed net sales, €12,025,280.84; on the metric views "revenue" is a synonym of `net_revenue`, €10,997,554.48 |
 
 ## The 60-second version
 
@@ -45,7 +47,9 @@ quarantine tables with the rule they broke, and builds a star schema in gold. Be
 could prove the quarantine caught exactly the injected defects. On top I defined the KPIs once as Metric Views:
 revenue, AOV, return rate. The dashboard and Genie use those. Then I benchmarked Genie on 25 fixed questions, with
 a dev/holdout split so I wasn't just tuning to the test. Moving from raw tables to Metric Views took accuracy from
-TODO to TODO, and the remaining errors were TODO."
+56% to 80%, and every real error disappeared: on the raw tables Genie read 'revenue' as net sales and 'basket size'
+as order value. One instruction about answer shape took it to 88%; what's left are correct answers in a different
+shape, like a percentage instead of a decimal."
 
 ## Questions you will get
 
@@ -174,19 +178,41 @@ pipeline-owned tables have to be declared inside the pipeline, so I used a maski
 **How did you evaluate it?**
 - 25 fixed questions in five categories, with ground-truth SQL on the gold tables, written independently of the
   metric views.
-- 15 dev questions for tuning, 10 holdout questions I didn't look at until the end.
-- Three runs: tables only, metric views, metric views plus fixes.
+- 15 dev questions for tuning, 10 holdout questions not used to choose fixes.
+- Three runs in Genie's Agent mode: tables only, metric views, metric views plus one instruction.
 - Every "Bad" reviewed by hand and tagged with one failure type.
 - For the ambiguous and join questions, I checked that the wrong reading really gives a different number;
   otherwise the question wouldn't test anything.
 
-**Give an example of an error and the fix.** TODO, from `evaluation_report.md`. Prepare two: one join, one metric
-definition.
+**Give an example of an error and the fix.**
+- *Metric definition (B19, holdout).* "What was our revenue in Q2 2026?" On the raw tables Genie wrote
+  `SUM(net_amount)`, €12,025,280.84: that's net sales, the exact wrong reading the benchmark had recorded in advance.
+  Revenue here means net sales minus refunds on those orders, €10,997,554.48. On the metric views "revenue" is a
+  synonym of `net_revenue`, so Genie wrote `MEASURE(net_revenue)` and got it right, with no instruction.
+- *Ambiguity (B21, holdout).* "Average basket size in July 2026?" On the tables Genie computed average order
+  value, €315.67. The company's definition is units per order, 2.73. The metric view's `units_per_order` lists
+  "basket size" as a synonym, and that was enough.
+
+**Why does the CV not mention join errors?** Because there weren't any. The join questions were built as traps:
+`dim_customer` has one row per customer version, so joining on `customer_id` double-counts (B22's Basic tier would
+show €2.35M instead of €1.88M). Even on the raw tables Genie joined on `customer_key`, the version key. I report what
+actually failed rather than what I expected to fail.
+
+**What did the instruction in run C do?** Run B had no real errors, only correct answers in the wrong shape:
+percentages instead of decimals, a full ranking instead of the top row. One instruction about answer shape fixed
+B11 and two holdout questions of the same kind; it took strict accuracy from 80% to 88%. I'd present it as cosmetic:
+the substance was already right in run B.
+
+**Why add the gold tables to the metric-view agent?** Genie rejects benchmark ground-truth SQL on tables the agent
+can't see, and I wanted the ground truth written on gold, independent of the metric views. I checked every query
+in runs B and C: none touched gold.
 
 **What are the limits of that evaluation?**
 - 25 questions means one question is 4 points.
 - Exact result matching produces false failures, hence the manual review.
-- Genie isn't deterministic.
+- Genie isn't deterministic, and each configuration ran once. B08 passed twice and then returned a timestamp month.
+- The holdout wasn't perfectly sealed: I reviewed holdout failures after each run, and one clause of the run C
+  instruction matches a holdout question. The A → B gain involved no tuning, so it's the number to lean on.
 - Benchmarks don't test follow-up questions.
 - The data is synthetic.
 

@@ -57,13 +57,26 @@ Details: [data model](docs/data_model.md) · [data-quality rules](docs/dq_rules.
 
 ## Results
 
-TODO, after the Databricks runs:
+Verified on Databricks Free Edition on 2026-10-25.
 
-- Data quality: 3,105 of 343,151 order lines and 155 of 31,730 returns quarantined, matching the injected defects
-  exactly. 2,757 duplicate lines removed, including a fully re-sent file. 983 order lines with unknown products
-  kept and flagged instead of dropped.
-- Genie (holdout accuracy, strict / reviewed): tables only TODO → metric views TODO → after fixes TODO.
-- The errors that mattered: TODO.
+- **Data quality:** 3,105 of 343,151 order lines and 155 of 31,730 returns quarantined, matching the injected
+  defects exactly, per rule. 2,757 duplicate lines removed, including a fully re-sent file. 983 order lines with
+  unknown products kept and flagged instead of dropped. `notebooks/04_validate.py`: 23 of 23 checks pass.
+- **One KPI definition:** the metric views equal plain SQL on gold for all 12 checked measures, and the dashboard's
+  counters equal them with and without a date filter.
+- **Genie** ([evaluation report](docs/evaluation_report.md)), accuracy on all 25 questions, strict / after review:
+
+  | Run | All 25 | Holdout 10 |
+  |---|---|---|
+  | A: gold tables, no instructions | 56% / 80% | 50% / 70% |
+  | B: metric views, no instructions | 80% / 100% | 70% / 100% |
+  | C: B plus one instruction about answer shape | 88% / 100% | 80% / 100% |
+
+- **The errors that mattered:** on the raw tables Genie read "revenue" as net sales (B01, B19), "basket size" as
+  order value (B21) and "top customers" by net sales (B20), and dropped the Unknown product category (B13). The
+  metric views' definitions and synonyms fixed all five without any instructions. Genie made no join errors: it
+  joined to the SCD2 customer dimension on the version key even on the raw tables. What remains in run C are
+  correct answers in a different shape.
 
 ## Lessons learned
 
