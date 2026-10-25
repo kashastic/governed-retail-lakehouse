@@ -212,6 +212,8 @@ definition.
 ## Be upfront about
 
 - The data is synthetic. Say so first; the point is that it lets you prove the DQ results against ground truth.
-- The dashboard and the Genie agents were built in the UI; their exports and the run sheets are in the repo.
+- The dashboard is a JSON file in the repo (`dashboards/retail_kpis.lvdash.json`) that Databricks renders from the
+  Git folder; its format was taken from a dashboard first built in the UI. The Genie agents were built in the UI;
+  the run sheets are in the repo.
 - How the project was built, including any AI assistance, if asked. What makes it defensible is that you can
   explain, run and change every part of it.

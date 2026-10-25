@@ -94,9 +94,9 @@ pipelines/      Lakeflow pipeline: transformations/ (bronze, silver, gold, dq) a
 notebooks/      smoke test, setup, landing, incremental proof, validation
 semantic/       Metric Views
 governance/     grants, masking, tags
-dashboards/     dataset SQL, build guide, exported dashboard
+dashboards/     the AI/BI dashboard as code (retail_kpis.lvdash.json), dataset SQL, build guide
 genie/          benchmark questions, ground-truth SQL, expected answers, run sheets, evaluation protocol
 tools/          local pipeline runner, benchmark export, run scoring
-tests/          generator, transforms (incl. streaming de-dup), metric views, end-to-end reconciliation, benchmarks
+tests/          generator, transforms, metric views, dashboard references, end-to-end reconciliation, benchmarks
 docs/           runbook, data model, DQ rules, metric definitions, evaluation report
 ```

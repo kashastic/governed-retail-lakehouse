@@ -127,7 +127,8 @@ Screenshots: lineage graph from the metric view down to bronze → `lineage.png`
 
 ## Step 10 · Dashboard (1 hour)
 
-Follow `dashboards/BUILD.md`. Export to `dashboards/retail_kpis.lvdash.json`, screenshot each page.
+Pull the Git folder: `dashboards/retail_kpis.lvdash.json` opens as the dashboard. Check each page, then follow
+"Finish" in `dashboards/BUILD.md` (publish, share, screenshot each page).
 
 ## Step 11 · Genie evaluation (2-3 hours)
 
