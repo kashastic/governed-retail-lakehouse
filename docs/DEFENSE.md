@@ -17,7 +17,7 @@ Rule: every phrase points to something in the repo. If a row below has no eviden
 | data-quality checks | `pipelines/utilities/rules.py`, `docs/dq_rules.md`, `screenshots/expectations.png` | TODO screenshot |
 | routing failed records to quarantine tables | `silver.*_quarantine` + `screenshots/validate_pass.png`: quarantine = injected defects, exactly | TODO |
 | revenue, AOV and return-rate KPIs in Metric Views | `semantic/sales_metrics.sql`, `docs/metric_definitions.md` (12 checks against plain SQL, all equal), `screenshots/metric_view.png` | TODO screenshot |
-| AI/BI dashboard on them | `dashboards/retail_kpis.lvdash.json`, `screenshots/dashboard_*.png` | TODO |
+| AI/BI dashboard on them | `dashboards/retail_kpis.lvdash.json` (datasets are the metric views), `dashboards/BUILD.md` (filtered counters equal the validation numbers), `screenshots/dashboard_*.png` | TODO screenshots |
 | evaluated Genie on a fixed 25-question set | `genie/benchmarks.csv`, `genie/runs/run_*.csv`, `screenshots/genie_run_*.png` | TODO |
 | fixing the join and metric-definition errors it exposed | `docs/evaluation_report.md` (before/after per question) | TODO. If no join error showed up, change "join and metric-definition" to the failure types that did. |
 

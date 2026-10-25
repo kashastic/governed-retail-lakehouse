@@ -50,6 +50,14 @@ ever averaged across rows.
 | Issues per daily batch | Stacked bar | `ds_data_issues_daily` | x `batch_id`, y `rows` (sum), colour `issue`. The backfill's ~4,000 issues would flatten the daily batches. |
 | Detail | Table | `ds_data_issues` | all columns |
 
+## Verified on Databricks (2026-10-25)
+
+All three pages render from the Git folder. Unfiltered, the counters equal `04_validate`'s all-time numbers
+(€46.62M net revenue, €320.14 AOV, 8.03% return rate). With Order date set to August 2026 they show €4.06M net
+sales, €312.3 AOV, 7.6% return rate and 7.51K active customers, equal to the August checks. So the ratios are
+recomputed by the metric view for the filtered period, not averaged. On the data-quality page, batch 7 has the
+most issues because it re-sends batch 6's orders file, whose bad rows are quarantined again.
+
 ## Changing it
 
 Either edit the JSON and run `pytest tests/test_dashboard.py`, or change the dashboard in the UI and export it
