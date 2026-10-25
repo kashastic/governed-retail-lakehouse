@@ -67,6 +67,18 @@ and file). Side benefit: re-sends are now caught however late they arrive, not o
 `notebooks/04_validate.py` is the regression check. "Net sales preserved silver -> gold" fails if gold falls behind
 silver again.
 
+**Verified on Databricks (2026-10-25).** The two silver streaming tables had to be dropped once: a pipeline can't
+change a dataset from streaming table to materialized view in place. After that, a full refresh, then an ordinary
+update with one new batch:
+
+| Step | `silver.order_lines` | Net sales silver = gold | Orphan lines / returns in gold | `04_validate` |
+|---|---|---|---|---|
+| Full refresh (batches 0–7) | 331,063 | €49,983,899.72 | 964 / 93 | 11/11 PASS |
+| Ordinary update with batch 8 (+839 valid lines) | 331,902 | €50,096,231.15 | 968 / 94 | 11/11 PASS |
+
+In the batch-8 update `fact_order_line` was again a full recompute, the refresh type that read stale data before,
+and this time it included the new rows in the same update. The de-duplication views refreshed incrementally.
+
 ## Ground truth after all 15 batches
 
 | | Order lines | Returns |

@@ -82,7 +82,10 @@ I worked through it from the evidence:
 - The views that refreshed incrementally were current; only the full recompute read the old snapshot.
 
 I removed the streaming state and de-duplicated in a materialized view that keeps the first arrival of each content
-hash, then re-verified with new batches (TODO: fill in the result of the full refresh + batches 8–14 rerun).
+hash. Then I re-verified: a full refresh, followed by an ordinary run with one new batch (batch 8, 839 new valid
+lines). In that same run silver went to 331,902 lines and gold kept up: net sales €50,096,231.15 in both, 968 orphan
+lines (964 + 4) and 94 orphan returns (93 + 1). The validation notebook passed 11 of 11, while the fact table was
+again fully recomputed, the same refresh type that read stale data before.
 Side benefit: re-sends are caught however late they come, not just within 3 days. Lesson: reconcile every layer
 against ground truth, not just the layer you changed.
 
